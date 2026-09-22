@@ -4,24 +4,21 @@
  * ==========================================================================
  * Gère l'interface de configuration du popup :
  *  - Affichage du windowId (UUID unique par profil Chrome)
- *  - Saisie et sauvegarde de l'internet number du demandeur
  *  - Saisie et sauvegarde de l'URL de la passerelle WebSocket
+ *  - Saisie du mot de passe requis pour s'y connecter (sert de jeton
+ *    d'authentification WebSocket, voir buildAuthenticatedWsUrl dans wsUrl.js)
  *  - Signal de connexion WebSocket (via message au background)
- *
- * Le jeton d'authentification n'est plus saisi ici : il est défini en interne
- * dans gatewayConfig.js (constante GATEWAY_AUTH_TOKEN).
  * ==========================================================================
  */
 
-const internetNumberInput = document.getElementById('internetNumber');
 const isMainWindowInput    = document.getElementById('isMainWindow');
 const gatewayUrlInput      = document.getElementById('gatewayUrl');
+const gatewayPasswordInput = document.getElementById('gatewayPassword');
 const windowIdEl           = document.getElementById('windowId');
 const statusDot            = document.getElementById('statusDot');
 const statusText           = document.getElementById('statusText');
 const btnSave              = document.getElementById('btnSave');
 const btnTest              = document.getElementById('btnTest');
-const btnCopyInternet      = document.getElementById('btnCopyInternet');
 const btnCopyUrl           = document.getElementById('btnCopyUrl');
 const btnDisconnect        = document.getElementById('btnDisconnect');
 const toast                = document.getElementById('toast');
@@ -127,8 +124,8 @@ function updateStatusUI(status) {
 // avant que l'utilisateur ait cliqué sur Validé — SAUF pour le mot de passe
 // du portail (voir draftLoginPassword plus bas).
 chrome.storage.local.get(
-    ['windowId', 'internetNumber', 'isMainWindow', 'gatewayUrl', 'wsStatus',
-     'draftInternetNumber', 'draftGatewayUrl',
+    ['windowId', 'internetNumber', 'isMainWindow', 'gatewayUrl', 'gatewayPassword', 'wsStatus',
+     'draftGatewayUrl',
      'loginUsername', 'loginPassword', 'draftLoginUsername', 'draftLoginPassword'],
     (data) => {
         // Purge d'un éventuel brouillon de mot de passe écrit par une version
@@ -166,8 +163,10 @@ chrome.storage.local.get(
             chrome.storage.local.set({ isMainWindow: inferredIsMainWindow });
         }
 
-        internetNumberInput.value = data.draftInternetNumber ?? data.internetNumber ?? '';
         gatewayUrlInput.value     = data.draftGatewayUrl     ?? data.gatewayUrl     ?? '';
+        // Pas de brouillon pour ce mot de passe non plus, même raison que pour
+        // celui du portail juste en dessous : seule la valeur déjà VALIDÉE est restituée.
+        gatewayPasswordInput.value = data.gatewayPassword ?? '';
         loginUsernameInput.value  = data.draftLoginUsername   ?? data.loginUsername  ?? '';
         // Pas de brouillon pour le mot de passe (voir draftLoginPassword plus bas) :
         // seule la valeur déjà VALIDÉE est restituée.
@@ -176,13 +175,6 @@ chrome.storage.local.get(
         updateStatusUI(data.wsStatus || 'disconnected');
     }
 );
-
-// Sauvegarde automatique du brouillon dès que l'utilisateur tape.
-// N'affecte pas les valeurs actives utilisées par background.js
-// (celles-ci ne sont mises à jour qu'au clic sur Validé).
-internetNumberInput.addEventListener('input', () => {
-    chrome.storage.local.set({ draftInternetNumber: internetNumberInput.value });
-});
 
 // Le rôle de la fenêtre est enregistré IMMÉDIATEMENT, sans passer par le
 // brouillon ni par le bouton « Validé » : une case cochée mais non validée
@@ -231,15 +223,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     }
 });
 
-// Copie le numéro internet ou l'URL du serveur dans le presse-papiers.
-btnCopyInternet.addEventListener('click', () => {
-    copyToClipboard(
-        internetNumberInput.value,
-        'Aucun numéro internet à copier.',
-        'Numéro internet copié !',
-    );
-});
-
+// Copie l'URL du serveur dans le presse-papiers.
 btnCopyUrl.addEventListener('click', () => {
     copyToClipboard(
         gatewayUrlInput.value,
@@ -267,16 +251,21 @@ btnDisconnect.addEventListener('click', () => {
     }
 });
 
-// Teste la connexion WebSocket à l'URL saisie sans la sauvegarder
+// Teste la connexion WebSocket à l'URL/mot de passe saisis sans les sauvegarder
 // (buildAuthenticatedWsUrl vient de wsUrl.js, partagé avec background.js).
 btnTest.addEventListener('click', () => {
     const url = gatewayUrlInput.value.trim();
+    const password = gatewayPasswordInput.value.trim();
     if (!url) {
         showToast('Saisissez d\'abord l\'URL du serveur.', 'error');
         return;
     }
     if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
         showToast('L\'URL doit commencer par ws:// ou wss://', 'error');
+        return;
+    }
+    if (!password) {
+        showToast('Saisissez d\'abord le mot de passe du serveur.', 'error');
         return;
     }
 
@@ -304,29 +293,21 @@ btnTest.addEventListener('click', () => {
     }, 5000);
 
     try {
-        testWs = new WebSocket(buildAuthenticatedWsUrl(url, GATEWAY_AUTH_TOKEN));
+        testWs = new WebSocket(buildAuthenticatedWsUrl(url, password));
         testWs.onopen = () => finishTest('Connexion réussie !', 'success');
-        testWs.onerror = () => finishTest('Connexion échouée — vérifiez l\'URL.', 'error');
+        testWs.onerror = () => finishTest('Connexion échouée — vérifiez l\'URL et le mot de passe.', 'error');
     } catch {
         finishTest('URL invalide.', 'error');
     }
 });
 
-// Valide la configuration.
-//
-// Le numéro internet N'EST PAS obligatoire : la fenêtre « principale » (celle
-// qui trouve un créneau et déclenche la notification vers les autres fenêtres)
-// n'a pas besoin d'être associée à un demandeur précis — l'utilisateur peut y
-// cliquer manuellement sur le calendrier de N'IMPORTE QUEL demandeur sans
-// avoir à renseigner/mettre à jour ce champ à chaque fois. Seules les
-// fenêtres « filles » (qui reçoivent la notification et déclenchent
-// AUTOMATIQUEMENT le clic sur la ligne du bon demandeur) ont réellement
-// besoin d'un numéro internet configuré — ceci est déjà appliqué côté
-// automatisation (voir launchBooking dans applicationsPage.js, qui n'agit
-// que si un numéro internet est présent).
+// Valide la configuration. L'extension ne peut se connecter à la passerelle
+// (et donc fonctionner) sans URL ET mot de passe : voir isValidAuthToken
+// côté serveur (server/gateway/logic.js), qui rejette toute connexion dont
+// le jeton (ce mot de passe) ne correspond pas à GATEWAY_AUTH_TOKEN.
 btnSave.addEventListener('click', () => {
-    const internetNumber = internetNumberInput.value.trim();
-    const gatewayUrl     = gatewayUrlInput.value.trim();
+    const gatewayUrl = gatewayUrlInput.value.trim();
+    const gatewayPassword = gatewayPasswordInput.value.trim();
 
     if (!gatewayUrl) {
         showToast('Veuillez saisir l\'URL du serveur.', 'error');
@@ -338,9 +319,14 @@ btnSave.addEventListener('click', () => {
         return;
     }
 
-    // Sauvegarde les valeurs actives et supprime les brouillons devenus inutiles
-    chrome.storage.local.set({ internetNumber, gatewayUrl }, () => {
-        chrome.storage.local.remove(['draftInternetNumber', 'draftGatewayUrl']);
+    if (!gatewayPassword) {
+        showToast('Veuillez saisir le mot de passe du serveur.', 'error');
+        return;
+    }
+
+    // Sauvegarde les valeurs actives et supprime le brouillon devenu inutile
+    chrome.storage.local.set({ gatewayUrl, gatewayPassword }, () => {
+        chrome.storage.local.remove(['draftGatewayUrl']);
 
         // Retour visuel immédiat : la reconnexion démarre. L'écouteur
         // storage.onChanged basculera ensuite sur « Connecté » tout seul.

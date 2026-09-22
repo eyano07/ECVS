@@ -16,10 +16,10 @@
  * ==========================================================================
  */
 
-// wsUrl.js         → helper buildAuthenticatedWsUrl, partagé avec le popup.
-// gatewayConfig.js → constante GATEWAY_AUTH_TOKEN (jeton interne, NON versionné :
-//                    voir gatewayConfig.example.js).
-importScripts('wsUrl.js', 'gatewayConfig.js');
+// wsUrl.js → helper buildAuthenticatedWsUrl, partagé avec le popup. Le jeton
+// qu'il ajoute à l'URL est désormais le mot de passe saisi dans le popup
+// (chrome.storage.local.gatewayPassword), plus le jeton interne fixe d'avant.
+importScripts('wsUrl.js');
 
 // ======================== CONSTANTES ========================
 
@@ -201,8 +201,9 @@ chrome.runtime.onInstalled.addListener(() => {
         }
     });
 
-    // Clés devenues obsolètes : le jeton est désormais interne (gatewayConfig.js)
-    // et n'est plus saisi ni stocké depuis le popup.
+    // Clés d'une ancienne génération du champ mot de passe (avant le passage
+    // temporaire par gatewayConfig.js, lui-même abandonné depuis) : purge sans
+    // rapport avec la clé actuelle `gatewayPassword`.
     chrome.storage.local.remove(['gatewayToken', 'draftGatewayToken']);
 });
 
@@ -253,7 +254,7 @@ function sendToGateway(message) {
  * Se reconnecte automatiquement en cas de fermeture ou d'erreur.
  */
 function connectWebSocket() {
-    chrome.storage.local.get(['gatewayUrl', 'windowId', 'internetNumber', 'wsManualDisconnect'], (data) => {
+    chrome.storage.local.get(['gatewayUrl', 'gatewayPassword', 'windowId', 'internetNumber', 'wsManualDisconnect'], (data) => {
         // Déconnexion manuelle demandée via le popup → on ne (re)connecte pas
         // tant que l'utilisateur n'a pas cliqué « Reconnecter ».
         if (data.wsManualDisconnect) {
@@ -268,6 +269,16 @@ function connectWebSocket() {
             return;
         }
 
+        // Le mot de passe (saisi dans le popup) sert de jeton d'authentification
+        // WebSocket (voir GATEWAY_AUTH_TOKEN côté serveur) : sans lui, la passerelle
+        // rejette l'upgrade avec un 401 — l'extension est donc inutilisable tant
+        // qu'il n'est pas renseigné ET validé (voir isValidAuthToken dans logic.js).
+        if (!data.gatewayPassword) {
+            console.warn('[CEV_AVI] Pas de mot de passe passerelle configuré — WebSocket non ouvert.');
+            setWsStatus('disconnected');
+            return;
+        }
+
         if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
             return; // déjà connecté ou en cours de connexion
         }
@@ -275,7 +286,7 @@ function connectWebSocket() {
         console.log(`[CEV_AVI] Connexion WebSocket → ${data.gatewayUrl}`);
         setWsStatus('connecting');
 
-        ws = new WebSocket(buildAuthenticatedWsUrl(data.gatewayUrl, GATEWAY_AUTH_TOKEN));
+        ws = new WebSocket(buildAuthenticatedWsUrl(data.gatewayUrl, data.gatewayPassword));
 
         ws.onopen = () => {
             console.log('[CEV_AVI] WebSocket connecté.');

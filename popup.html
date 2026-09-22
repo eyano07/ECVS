@@ -388,19 +388,6 @@
       </div>
 
       <div class="field-group">
-        <label for="internetNumber">Numéro internet du demandeur</label>
-        <div class="input-with-copy">
-          <input type="text" id="internetNumber" placeholder="ex: VOWINT6055154" />
-          <button type="button" class="btn-copy-icon" id="btnCopyInternet" title="Copier le numéro internet" aria-label="Copier le numéro internet">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <div class="field-group">
         <label for="gatewayUrl">Serveur</label>
         <div class="input-row">
           <div class="input-with-copy">
@@ -415,6 +402,12 @@
           <button type="button" class="btn-test" id="btnTest">Tester</button>
         </div>
         <div class="hint">Utilisez ws:// en local ou wss:// en production.</div>
+      </div>
+
+      <div class="field-group">
+        <label for="gatewayPassword">Mot de passe</label>
+        <input type="password" id="gatewayPassword" placeholder="Mot de passe du serveur" autocomplete="off" />
+        <div class="hint">Requis pour se connecter au serveur, en plus de son URL.</div>
       </div>
 
       <button class="btn-save" id="btnSave">Validé</button>
@@ -445,7 +438,6 @@
   </main>
 
   <script src="wsUrl.js"></script>
-  <script src="gatewayConfig.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

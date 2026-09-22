@@ -9,8 +9,9 @@
  */
 
 /**
- * Ajoute le jeton d'authentification (défini dans gatewayConfig.js) à l'URL de
- * la passerelle, sous forme de paramètre de requête `token`.
+ * Ajoute le jeton d'authentification (le mot de passe saisi dans le popup,
+ * voir gatewayPassword dans popup.js/background.js) à l'URL de la passerelle,
+ * sous forme de paramètre de requête `token`.
  *
  * Le paramètre d'URL est la seule option disponible : l'API WebSocket des
  * navigateurs n'autorise pas d'en-tête personnalisé. Le jeton est donc
@@ -18,7 +19,7 @@
  * raison de plus de servir la passerelle en `wss://` derrière TLS.
  *
  * @param {string} baseUrl - URL de la passerelle (ex: "ws://1.2.3.4:8787").
- * @param {string} [token] - Jeton partagé configuré côté passerelle.
+ * @param {string} [token] - Mot de passe/jeton attendu côté passerelle (GATEWAY_AUTH_TOKEN).
  * @returns {string} URL avec le jeton ajouté, ou l'URL d'origine si pas de jeton.
  */
 function buildAuthenticatedWsUrl(baseUrl, token) {

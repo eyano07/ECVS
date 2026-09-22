@@ -295,19 +295,24 @@ aucun secret ni adresse email en dur : il ne fait que référencer `${VAR}`.
 Depuis cette mise à jour, la passerelle WebSocket est protégée par deux
 mécanismes indépendants, tous deux optionnels mais fortement recommandés :
 
-1. Authentification par jeton — si `GATEWAY_AUTH_TOKEN` est défini, toute
-   connexion doit fournir le même jeton (via `?token=...` dans l'URL,
-   automatiquement ajouté par l'extension d'après `gatewayConfig.js`). Générer
-   un jeton fort :
+1. Authentification par mot de passe — si `GATEWAY_AUTH_TOKEN` est défini,
+   toute connexion doit fournir le même jeton (via `?token=...` dans l'URL,
+   automatiquement ajouté par l'extension d'après le champ **Mot de passe**
+   du popup — voir section Extension ci-dessous). Sans ce mot de passe (ou
+   avec un mot de passe incorrect), la passerelle rejette la connexion avec un
+   401 et l'extension reste déconnectée : c'est ce qui rend l'accès à
+   l'extension conditionné à la connaissance à la fois de l'URL **et** du mot
+   de passe. Générer un jeton fort :
 
    ```bash
    openssl rand -hex 32
    ```
 
-   Ce jeton est embarqué dans l'extension distribuée : il est donc extractible
-   par quiconque en possède une copie. Il bloque les connexions opportunistes
-   depuis Internet, pas un utilisateur de l'extension. En cas de fuite, le
-   remplacer côté serveur **et** dans `gatewayConfig.js`.
+   Ce mot de passe est saisi et stocké par chaque utilisateur dans son propre
+   profil Chrome (`chrome.storage.local`, jamais commité) plutôt qu'embarqué
+   dans le code de l'extension. En cas de fuite, le remplacer côté serveur
+   (`GATEWAY_AUTH_TOKEN`) et en informer les utilisateurs pour qu'ils resaisissent
+   le nouveau mot de passe dans leur popup.
 
 2. Vérification de l'Origin — `ALLOWED_ORIGINS` restreint les origines
    autorisées à se connecter (utile pour limiter aux extensions Chrome via
@@ -367,25 +372,20 @@ mécanismes indépendants, tous deux optionnels mais fortement recommandés :
 
 ### Extension (popup de configuration)
 
-Cliquer sur l'icône de l'extension et renseigner :
+Cliquer sur l'icône de l'extension et renseigner (onglet « Serveur ») :
 
-- **Numéro internet** : identifiant du dossier de demande de visa (format
-  alphanumérique, ex. `VOWINT6055154` — voir validation côté passerelle
-  ci-dessus).
 - **URL de la passerelle** : ex. `ws://localhost:8787` (ou `wss://...` en
-  production). Le bouton **Tester** vérifie la connexion sans sauvegarder.
-- **Identifiant et mot de passe du portail** *(onglet « Connexion », optionnels)* :
-  utilisés par `autoLogin.js` pour remplir et valider la page de connexion.
-  Les laisser vides désactive la connexion automatique.
+  production).
+- **Mot de passe** : doit correspondre exactement à `GATEWAY_AUTH_TOKEN` côté
+  serveur. **Obligatoire** — sans URL et mot de passe valides, la passerelle
+  refuse la connexion (401) et l'extension ne fonctionne pas (voir section
+  Sécurité ci-dessus).
 
-Le **jeton d'authentification n'est plus saisi dans le popup** : il est lu dans
-`gatewayConfig.js`, un fichier non versionné à créer depuis
-`gatewayConfig.example.js` :
+Le bouton **Tester** vérifie la connexion (URL + mot de passe) sans sauvegarder.
 
-```bash
-cp gatewayConfig.example.js gatewayConfig.js
-# puis y coller la même valeur que GATEWAY_AUTH_TOKEN du serveur
-```
+Dans l'onglet « Connexion » *(optionnel)* : **identifiant et mot de passe du
+portail**, utilisés par `autoLogin.js` pour remplir et valider la page de
+connexion. Les laisser vides désactive la connexion automatique.
 
 ### Reprise après blocage du portail
 
@@ -465,9 +465,7 @@ AVI_Server/AVI_ANA/
 ├── autoLogin.js               # Connexion automatique au portail
 ├── tooManyAttempts.js         # Reprise après blocage anti-spam du portail
 ├── wsUrl.js                   # URL WebSocket authentifiée (partagé popup/background)
-├── gatewayConfig.example.js   # Modèle du jeton (versionné)
-├── gatewayConfig.js           # Jeton réel (NON versionné, à créer localement)
-├── popup.html / popup.js      # Interface de configuration
+├── popup.html / popup.js      # Interface de configuration (URL + mot de passe)
 ├── icons/                     # Icônes de l'extension
 └── server/
     ├── docker-compose.yml     # Kafka + passerelle (ne référence que des ${VAR})
