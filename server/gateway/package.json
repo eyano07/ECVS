@@ -1,0 +1,15 @@
+{
+  "name": "cev-avi-gateway",
+  "version": "1.0.0",
+  "description": "Passerelle WebSocket <-> Kafka pour la coordination multi-profils CEV_AVI",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "kafkajs": "^2.2.4",
+    "nodemailer": "^10.0.10",
+    "ws": "^8.17.1"
+  }
+}

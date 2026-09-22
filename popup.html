@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ANAMU Business — Configuration</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #ffffff;
+      --panel: #fafafa;
+      --text: #16181d;
+      --muted: #6b7280;
+      --faint: #9ca3af;
+      --line: #e8eaed;
+      --line-strong: #d7dade;
+      --accent: #1f6feb;
+      --accent-soft: #eef4ff;
+      --ok: #16a34a;
+      --bad: #dc2626;
+      --warn: #d97706;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 340px;
+      background: var(--bg);
+      color: var(--text);
+      font: 13px Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .shell {
+      padding: 18px 18px 20px;
+    }
+
+    /* ---------- En-tête ---------- */
+    .head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .head h1 {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    /* Signal de connexion : point + libellé, sans URL ni bouton. */
+    .signal {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--faint);
+      flex-shrink: 0;
+    }
+
+    .status-indicator.connected { background: var(--ok); }
+    .status-indicator.disconnected { background: var(--bad); }
+
+    .status-indicator.connecting {
+      background: var(--warn);
+      animation: blink 1s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+
+    .status-text {
+      color: var(--muted);
+      font-size: 11.5px;
+      font-weight: 500;
+    }
+
+    /* ---------- Onglets ---------- */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px 4px 9px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 500;
+      transition: color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .tab:hover {
+      color: var(--text);
+    }
+
+    .tab.active {
+      border-bottom-color: var(--accent);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .tab-panel[hidden] {
+      display: none;
+    }
+
+    /* ---------- Champs ---------- */
+    .field-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      outline: none;
+      background: var(--bg);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 12.5px;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    input::placeholder {
+      color: var(--faint);
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.12);
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .input-row .input-with-copy {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .input-with-copy {
+      position: relative;
+    }
+
+    .input-with-copy input {
+      padding-right: 36px;
+    }
+
+    .btn-copy-icon {
+      position: absolute;
+      top: 50%;
+      right: 4px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--faint);
+      cursor: pointer;
+      transform: translateY(-50%);
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+
+    .btn-copy-icon:hover {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .btn-copy-icon svg {
+      width: 14px;
+      height: 14px;
+      pointer-events: none;
+    }
+
+    .btn-test {
+      height: 38px;
+      padding: 0 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--muted);
+      cursor: pointer;
+      flex-shrink: 0;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    }
+
+    .btn-test:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .btn-test:disabled {
+      cursor: default;
+      opacity: 0.6;
+    }
+
+    .hint {
+      margin-top: 6px;
+      color: var(--faint);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    /* ---------- Case à cocher ---------- */
+    .check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+    }
+
+    .check-row input[type="checkbox"] {
+      flex: none;
+      width: 15px;
+      height: 15px;
+      margin: 1px 0 0;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .check-row label {
+      margin-bottom: 0;
+      cursor: pointer;
+    }
+
+    .btn-save {
+      width: 100%;
+      height: 40px;
+      margin-top: 4px;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.15s ease;
+    }
+
+    .btn-save:hover {
+      background: #1a5fd0;
+    }
+
+    .btn-disconnect {
+      width: 100%;
+      height: 34px;
+      margin-top: 8px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--bad);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .btn-disconnect:hover {
+      border-color: #f0a6a6;
+      background: #fdf5f5;
+    }
+
+    .btn-disconnect.reconnect {
+      color: var(--ok);
+    }
+
+    .btn-disconnect.reconnect:hover {
+      border-color: #a7dbb8;
+      background: #f4faf6;
+    }
+
+    /* ---------- Pied : identifiant de fenêtre ---------- */
+    .foot {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .foot-key {
+      color: var(--faint);
+      font-size: 10.5px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .foot-value {
+      margin-top: 4px;
+      color: var(--muted);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 11px;
+      word-break: break-all;
+    }
+
+    /* ---------- Toast ---------- */
+    .toast {
+      display: none;
+      margin-top: 14px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .toast.success {
+      background: #edf9f1;
+      color: #15803d;
+    }
+
+    .toast.error {
+      background: #fdeeee;
+      color: #b91c1c;
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="head">
+      <h1>ANAMU Business</h1>
+      <div class="signal">
+        <span class="status-indicator connecting" id="statusDot"></span>
+        <span class="status-text" id="statusText">Connexion...</span>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab active" id="tabBtnServer" data-panel="panelServer" role="tab">Serveur</button>
+      <button type="button" class="tab" id="tabBtnLogin" data-panel="panelLogin" role="tab">Connexion</button>
+    </div>
+
+    <section class="tab-panel" id="panelServer" role="tabpanel">
+      <div class="field-group">
+        <div class="check-row">
+          <input type="checkbox" id="isMainWindow" />
+          <label for="isMainWindow">Fenêtre principale (surveille et notifie les autres)</label>
+        </div>
+        <div class="hint">À cocher sur UNE SEULE fenêtre : celle qui cherche les créneaux et prévient les fenêtres filles. Laisser décoché sur les fenêtres qui prennent le RDV d'un demandeur.</div>
+      </div>
+
+      <div class="field-group">
+        <label for="internetNumber">Numéro internet du demandeur</label>
+        <div class="input-with-copy">
+          <input type="text" id="internetNumber" placeholder="ex: VOWINT6055154" />
+          <button type="button" class="btn-copy-icon" id="btnCopyInternet" title="Copier le numéro internet" aria-label="Copier le numéro internet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label for="gatewayUrl">Serveur</label>
+        <div class="input-row">
+          <div class="input-with-copy">
+            <input type="text" id="gatewayUrl" placeholder="ws://localhost:8787" />
+            <button type="button" class="btn-copy-icon" id="btnCopyUrl" title="Copier l'URL" aria-label="Copier l'URL">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
+          <button type="button" class="btn-test" id="btnTest">Tester</button>
+        </div>
+        <div class="hint">Utilisez ws:// en local ou wss:// en production.</div>
+      </div>
+
+      <button class="btn-save" id="btnSave">Validé</button>
+      <button type="button" class="btn-disconnect" id="btnDisconnect">Déconnecter</button>
+    </section>
+
+    <section class="tab-panel" id="panelLogin" role="tabpanel" hidden>
+      <div class="field-group">
+        <label for="loginUsername">Nom d'utilisateur ou adresse e-mail</label>
+        <input type="text" id="loginUsername" placeholder="ex: exemple@gmail.com" autocomplete="off" />
+      </div>
+
+      <div class="field-group">
+        <label for="loginPassword">Mot de passe</label>
+        <input type="password" id="loginPassword" placeholder="Mot de passe du portail" autocomplete="off" />
+        <div class="hint">Utilisés pour remplir et valider automatiquement la page de connexion du portail. Laisser vide désactive la connexion automatique.</div>
+      </div>
+
+      <button class="btn-save" id="btnSaveLogin">Validé</button>
+    </section>
+
+    <div class="foot">
+      <div class="foot-key">Identifiant de cette fenêtre</div>
+      <div class="foot-value" id="windowId">Chargement...</div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </main>
+
+  <script src="wsUrl.js"></script>
+  <script src="gatewayConfig.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

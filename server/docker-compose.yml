@@ -1,0 +1,95 @@
+services:
+  kafka:
+    image: bitnamilegacy/kafka:3.7.0
+    container_name: cev_avi_kafka_8686
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      # Mode KRaft (sans ZooKeeper)
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      # Liés à 127.0.0.1, PAS 0.0.0.0 : ce broker mono-nœud n'a besoin d'être
+      # joignable que depuis le processus gateway sur la même machine
+      # (network_mode: host, KAFKA_BROKER=127.0.0.1:8686 côté gateway). Un
+      # bind sur 0.0.0.0 exposerait sans authentification ni TLS un accès
+      # d'administration complet (listTopics/createTopics/deleteTopics) à
+      # quiconque atteint le port réseau.
+      - KAFKA_CFG_LISTENERS=INTERNAL://127.0.0.1:8686,CONTROLLER://127.0.0.1:9098
+      - KAFKA_CFG_ADVERTISED_LISTENERS=INTERNAL://127.0.0.1:8686
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=INTERNAL
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@127.0.0.1:9098
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_OPTS=-Djava.net.preferIPv4Stack=true
+    volumes:
+      - kafka_data:/bitnami/kafka
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8686' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  gateway:
+    image: eyano3535/avi-server:latest
+    build: ./gateway
+    container_name: cev_avi_gateway_8787
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER=127.0.0.1:8686
+      - WS_PORT=8787
+      - KAFKA_TOPIC=appointment-found
+      - REGISTRY_TOPIC=applicant-registry
+      # groupId Kafka STABLE (ne pas changer sans raison) : garantit la reprise
+      # après un redémarrage bref sans perte de message. Architecture mono-
+      # instance : ne jamais lancer 2 passerelles avec le même groupId/broker.
+      - KAFKA_CONSUMER_GROUP_ID=${KAFKA_CONSUMER_GROUP_ID:-cev-avi-gateway}
+      # Intervalle (ms) entre deux purges du topic appointment-found (défaut : 30s).
+      - KAFKA_PURGE_INTERVAL_MS=${KAFKA_PURGE_INTERVAL_MS:-30000}
+      # ---- Sécurité de la passerelle WebSocket ----
+      # WS_HOST=127.0.0.1 (défaut) : le port N'EST PAS exposé hors de la machine,
+      # même avec network_mode: host. Ne PAS passer à 0.0.0.0 sans configurer
+      # GATEWAY_AUTH_TOKEN. Toutes les valeurs ci-dessous viennent du fichier
+      # .env (non versionné, voir .env.example) — aucun secret en dur ici.
+      - WS_HOST=${WS_HOST:-127.0.0.1}
+      - GATEWAY_AUTH_TOKEN=${GATEWAY_AUTH_TOKEN:-}
+      # Défaut chrome-extension://* même sans .env : les WebSocket échappant au
+      # CORS, un site web quelconque visité par l'utilisateur peut sinon ouvrir
+      # une connexion vers ws://127.0.0.1:8787 et injecter de faux événements —
+      # y compris en loopback, où GATEWAY_AUTH_TOKEN seul ne protège pas contre
+      # ce cas (l'attaque part du navigateur de la victime, pas du réseau).
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-chrome-extension://*}
+      # ---- Notifications email (Gmail) ----
+      # GMAIL_APP_PASSWORD = mot de passe d'application Google (16 caractères),
+      # PAS le mot de passe du compte. À créer sur https://myaccount.google.com/apppasswords
+      - GMAIL_USER=${GMAIL_USER:-}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD:-}
+      - MAIL_RECIPIENTS=${MAIL_RECIPIENTS:-}
+      # Destinataire(s) de l'alerte automatique « RDV trouvé » (avec l'URL IP:Port du serveur).
+      - APPOINTMENT_ALERT_RECIPIENTS=${APPOINTMENT_ALERT_RECIPIENTS:-}
+      # Délai mini (ms) entre deux alertes pour le même numéro internet (anti-rafale, défaut : 5 min).
+      - APPOINTMENT_ALERT_COOLDOWN_MS=${APPOINTMENT_ALERT_COOLDOWN_MS:-}
+      # Hôte public du serveur affiché dans l'alerte (FORTEMENT recommandé en
+      # production — sinon détection auto de l'IP, potentiellement incorrecte
+      # sur une machine multi-interfaces). Renseigner SERVER_PUBLIC_HOST=<ip-ou-dns>
+      # ou SERVER_PUBLIC_URL=ws://<ip>:8787 si besoin.
+      - SERVER_PUBLIC_HOST=${SERVER_PUBLIC_HOST:-}
+    healthcheck:
+      # /health répond 503 si le producteur ou le consommateur Kafka est hors
+      # service : le conteneur est alors marqué unhealthy au lieu de paraître sain
+      # tout en ne diffusant plus aucun événement.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8787/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  kafka_data:
+    driver: local

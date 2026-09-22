@@ -1,0 +1,11 @@
+# Dépendances
+node_modules/
+
+# Secrets / configuration locale (mots de passe d'application, etc.)
+.env
+server/.env
+*.env.local
+
+# Jeton d'authentification de la passerelle embarqué dans l'extension.
+# Le modèle à copier est gatewayConfig.example.js, lui versionné.
+gatewayConfig.js

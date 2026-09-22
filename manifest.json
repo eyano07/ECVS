@@ -1,0 +1,119 @@
+{
+    "_comment_manifest": "Extension Chrome CEV_AVI — Automatisation de prise de rendez-vous diplomatique belge",
+    "_comment_version": "Version 3 du manifest, requise pour les extensions Chrome modernes (Manifest V3)",
+    "manifest_version": 3,
+    "_comment_name": "Nom de l'extension tel qu'affiché dans Chrome",
+    "name": "CEV_AVI",
+    "_comment_app_version": "Numéro de version de l'extension",
+    "version": "2.0",
+    "_comment_permissions": "Permissions réellement utilisées : tabs (navigation/onglet captcha), storage (config + état), scripting (injection après rechargement de l'extension), alarms (keepalive WebSocket), browsingData (effacement TOTAL des données de navigation sur blocage anti-spam — voir clearAllBrowsingData dans background.js).",
+    "permissions": [
+        "tabs",
+        "storage",
+        "scripting",
+        "alarms",
+        "browsingData"
+    ],
+    "_comment_host_permissions": "Restreint aux domaines réellement utilisés par l'extension (principe du moindre privilège). La connexion WebSocket vers la passerelle (URL configurable par l'utilisateur) n'a PAS besoin d'être listée ici : WebSocket n'est pas soumis au CORS/host_permissions, contrairement à fetch/XHR.",
+    "host_permissions": [
+        "*://appointment.cloud.diplomatie.be/*",
+        "*://visaonweb.diplomatie.be/*"
+    ],
+    "_comment_action": "Popup de configuration du profil (internet number, URL passerelle, statut connexion)",
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": {
+            "32": "icons/32.png",
+            "128": "icons/128.png"
+        },
+        "default_title": "CEV_AVI — Configuration"
+    },
+    "_comment_content_scripts": "Scripts injectés automatiquement dans les pages correspondant aux patterns URL",
+    "content_scripts": [
+        {
+            "_comment": "client.js : automatisation de la sélection de créneau + bandeau demandeur sur la page captcha",
+            "matches": [
+                "*://appointment.cloud.diplomatie.be/*"
+            ],
+            "js": [
+                "client.js"
+            ],
+            "run_at": "document_end"
+        },
+        {
+            "_comment": "applicationsPage.js : déclenchement de la réservation après notification Kafka",
+            "matches": [
+                "*://visaonweb.diplomatie.be/*/VisaApplication/IndexByUserId*"
+            ],
+            "js": [
+                "applicationsPage.js"
+            ],
+            "run_at": "document_end"
+        },
+        {
+            "_comment": "editPage.js : sur la page du dossier, clique « Gérer votre rendez-vous » pour atteindre le captcha (le tableau n'a plus de bouton calendrier)",
+            "matches": [
+                "*://visaonweb.diplomatie.be/*/VisaApplication/Edit/*"
+            ],
+            "js": [
+                "editPage.js"
+            ],
+            "run_at": "document_end"
+        },
+        {
+            "_comment": "pageBridge.js : exécuté dans le MONDE DE LA PAGE pour déclencher les ng-click AngularJS (tableau des demandes ET page du dossier)",
+            "matches": [
+                "*://visaonweb.diplomatie.be/*/VisaApplication/IndexByUserId*",
+                "*://visaonweb.diplomatie.be/*/VisaApplication/Edit/*"
+            ],
+            "js": [
+                "pageBridge.js"
+            ],
+            "run_at": "document_end",
+            "world": "MAIN"
+        },
+        {
+            "_comment": "multiSessionRedirect.js : redirection depuis les pages intermédiaires vers IndexByUserId",
+            "matches": [
+                "*://appointment.cloud.diplomatie.be/Integration/Error/MultiSessionNotAllowed",
+                "*://visaonweb.diplomatie.be/fr-BE",
+                "*://visaonweb.diplomatie.be/en"
+            ],
+            "js": [
+                "multiSessionRedirect.js"
+            ],
+            "run_at": "document_end"
+        },
+        {
+            "_comment": "tooManyAttempts.js : vide le cache navigateur puis redirige vers IndexByUserId (by-pass blocage anti-spam)",
+            "matches": [
+                "*://visaonweb.diplomatie.be/Error/ErrorTooManyAttempts*"
+            ],
+            "js": [
+                "tooManyAttempts.js"
+            ],
+            "run_at": "document_end"
+        },
+        {
+            "_comment": "autoLogin.js : remplit et soumet le formulaire de connexion avec les identifiants de l'onglet « Connexion » du popup (Chrome ne rend pas ses valeurs auto-remplies lisibles par script)",
+            "matches": [
+                "*://visaonweb.diplomatie.be/*"
+            ],
+            "js": [
+                "autoLogin.js"
+            ],
+            "run_at": "document_end"
+        }
+    ],
+    "_comment_background": "Service Worker en arrière-plan : WebSocket Kafka, rechargement d'onglet",
+    "background": {
+        "service_worker": "background.js"
+    },
+    "_comment_icons": "Icônes de l'extension",
+    "icons": {
+        "32": "icons/32.png",
+        "72": "icons/72.png",
+        "128": "icons/128.png",
+        "512": "icons/512.png"
+    }
+}
